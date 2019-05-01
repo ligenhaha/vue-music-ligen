@@ -89,11 +89,12 @@
             <i @click.stop="togglePlaying" class="icon-mini" :class="miniIcon"></i>
           </progress-circle>
         </div>
-        <div class="control">
+        <div class="control" @click.stop="showPlaylist">
           <i class="icon-playlist"></i>
         </div>
       </div>
     </transition>
+    <playlist ref="playlist"></playlist>
     <audio ref="audio" :src="currentSong.url" @canplay="ready" @error="error"
            @timeupdate="updateTime"
            @ended="end"></audio>
@@ -110,9 +111,11 @@
   import {shuffle} from 'common/js/util'
   import Lyric from 'lyric-parser'
   import Scroll from 'base/scroll/scroll'
+  import Playlist from 'components/playlist/playlist'
 
   const transitionDuration = prefixStyle('transitionDuration')
   const transform = prefixStyle('transform')
+  const timeExp = /\[(\d{2}):(\d{2}):(\d{2})]/g
   export default {
     data () {
       return {
@@ -158,6 +161,9 @@
       this.touch = []
     },
     methods: {
+      showPlaylist () {
+        this.$refs.playlist.show()
+      },
       back () {
         this.setFullScreen(false)
       },
@@ -308,11 +314,20 @@
       },
       getLyric () {
         this.currentSong.getLyric().then((lyric) => {
-          this.currentLyric = new Lyric(lyric, this.handleLyric)
-          if (this.playing) {
-            this.currentLyric.play()
+          if (this.currentSong.lyric !== lyric) {
+            return
           }
-          // console.log(this.currentLyric)
+          this.currentLyric = new Lyric(lyric, this.handleLyric)
+          this.isPureMusic = !this.currentLyric.lines.length
+          if (this.isPureMusic) {
+            this.pureMusicLyric = this.currentLyric.lrc.replace(timeExp, '').trim()
+            this.playingLyric = this.pureMusicLyric
+          } else {
+            if (this.playing && this.canLyricPlay) {
+              // 这个时候有可能用户已经播放了歌曲，要切到对应位置
+              this.currentLyric.seek(this.currentTime * 1000)
+            }
+          }
         }).catch(() => {
           this.currentLyric = null
           this.playingLyric = ''
@@ -429,6 +444,9 @@
     },
     watch: {
       currentSong (newSong, oldSong) {
+        if (!newSong.id) {
+          return
+        }
         if (newSong.id === oldSong.id) {
           return
         }
@@ -458,7 +476,8 @@
     components: {
       ProgressBar,
       ProgressCircle,
-      Scroll
+      Scroll,
+      Playlist
     }
   }
 </script>
