@@ -57,6 +57,9 @@
       }
     },
     methods: {
+      refresh () {
+        this.$refs.suggest.refresh()
+      },
       search () {
         this.hasMore = true
         this.page = 1
